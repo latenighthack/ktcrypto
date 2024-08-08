@@ -30,7 +30,6 @@ kotlin {
         }
         val androidMain by getting {
             dependencies {
-                implementation(libs.bouncycastle)
             }
         }
         val commonTest by getting {
@@ -50,7 +49,7 @@ android {
 }
 
 mavenPublishing {
-    coordinates("com.latenighthack.ktcrypto", "ktcrypto-library", "0.0.1")
+    coordinates("com.latenighthack.ktcrypto", "ktcrypto-library", "0.0.2")
 
     pom {
         name.set("ktcrypto")

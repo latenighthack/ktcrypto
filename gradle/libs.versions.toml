@@ -4,7 +4,6 @@ kotlin = "2.0.0"
 kotlinx = "1.9.0-RC"
 android-minSdk = "26"
 android-compileSdk = "34"
-bouncycastle = "1.70"
 
 [libraries]
 kotlin-test = { module = "org.jetbrains.kotlin:kotlin-test", version.ref = "kotlin" }
@@ -14,7 +13,6 @@ kotlinx-coroutines-android = { module = "org.jetbrains.kotlinx:kotlinx-coroutine
 kotlinx-coroutines-common = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core-common", version.ref = "kotlinx" }
 kotlinx-coroutines-native = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core-native", version.ref = "kotlinx" }
 gradlePlugin-mavenPublish = "com.vanniktech:gradle-maven-publish-plugin:0.29.0"
-bouncycastle = { module = "org.bouncycastle:bcprov-jdk15on", version.ref = "bouncycastle" }
 
 [plugins]
 androidLibrary = { id = "com.android.library", version.ref = "agp" }
