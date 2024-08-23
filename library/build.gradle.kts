@@ -5,6 +5,7 @@ plugins {
     alias(libs.plugins.kotlinMultiplatform)
     alias(libs.plugins.androidLibrary)
     id("com.vanniktech.maven.publish.base")
+    id("io.github.ttypic.swiftklib") version "0.6.3"
 }
 
 kotlin {
@@ -18,9 +19,20 @@ kotlin {
             jvmTarget.set(JvmTarget.JVM_1_8)
         }
     }
-    iosX64()
-    iosArm64()
-    iosSimulatorArm64()
+    listOf(
+        iosX64(),
+        iosArm64(),
+        iosSimulatorArm64()
+    ).forEach {
+        it.compilations {
+            val main by getting {
+                cinterops {
+                    create("KtCrypto")
+                }
+            }
+        }
+    }
+
 
     sourceSets {
         val commonMain by getting {
@@ -76,5 +88,12 @@ mavenPublishing {
             connection.set("scm:git:git://github.com/latenighthack/ktcrypto.git")
             developerConnection.set("scm:git:ssh://git@github.com/latenighthack/ktcrypto.git")
         }
+    }
+}
+
+swiftklib {
+    create("KtCrypto") {
+        path = file("native/KtCrypto")
+        packageName("com.latenighthack.objclibs.ktcrypto")
     }
 }

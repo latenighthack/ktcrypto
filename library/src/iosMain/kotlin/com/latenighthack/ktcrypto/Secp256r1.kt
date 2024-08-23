@@ -1,30 +1,67 @@
-@file:Suppress("EXPECT_ACTUAL_CLASSIFIERS_ARE_IN_BETA_WARNING")
+@file:Suppress("actual_ACTUAL_CLASSIFIERS_ARE_IN_BETA_WARNING")
 
 package com.latenighthack.ktcrypto
 
-interface Secp256r1Provider {
-    fun generateKeyPair(): ByteArray
-    fun fromPrivateKey(raw: ByteArray): ByteArray
-    fun fromPublicKey(encoded: ByteArray): ByteArray
-    fun encodePublic(key: ByteArray): ByteArray
+import com.latenighthack.objclibs.ktcrypto.KtCrypto
+import kotlinx.cinterop.*
+import platform.Foundation.NSData
+import platform.Foundation.create
+import platform.posix.memcpy
 
-    fun sharedSecret(privateKey: ByteArray, publicKey: ByteArray): ByteArray
-    fun verify(publicKey: ByteArray, messageDigest: ByteArray, signature: ByteArray): Boolean
-    fun sign(privateKey: ByteArray, messageDigest: ByteArray): ByteArray
-}
+@OptIn(ExperimentalForeignApi::class, BetaInteropApi::class)
+private val ktCrypto = KtCrypto()
 
-var _secp256r1Provider: Secp256r1Provider? = null
+@OptIn(ExperimentalForeignApi::class, BetaInteropApi::class)
+actual val Secp256r1.Companion.ECDH: KeyAgreement<Secp256r1PublicKey, Secp256r1PrivateKey>
+    get() = object : KeyAgreement<Secp256r1PublicKey, Secp256r1PrivateKey> {
+        override suspend fun sharedSecret(privateKey: Secp256r1PrivateKey, publicKey: Secp256r1PublicKey): ByteArray {
+            return ktCrypto.ecdh(privateKey.internalKey.toNSData(), publicKey.internalKey.toNSData()).toByteArray()
+        }
+    }
 
-private object ecdhImplementation : KeyAgreement<Secp256r1PublicKey, Secp256r1PrivateKey> {
-    override suspend fun sharedSecret(privateKey: Secp256r1PrivateKey, publicKey: Secp256r1PublicKey): ByteArray =
-        _secp256r1Provider!!.sharedSecret(
-            privateKey.internalKey,
-            publicKey.internalKey
+@OptIn(ExperimentalForeignApi::class, BetaInteropApi::class)
+actual class Secp256r1PublicKey(val internalKey: ByteArray) : PublicKey {
+    actual companion object {}
+
+    actual override suspend fun verify(message: ByteArray, signature: ByteArray): Boolean {
+        return ktCrypto.verify(
+            internalKey.toNSData(),
+            message.toNSData(),
+            signature.toNSData(),
         )
+    }
 }
 
-actual val Secp256r1.Companion.ECDH: KeyAgreement<Secp256r1PublicKey, Secp256r1PrivateKey> get() = ecdhImplementation
+@OptIn(ExperimentalForeignApi::class, BetaInteropApi::class)
+actual suspend fun Secp256r1PublicKey.Companion.decode(encodedKey: ByteArray): Secp256r1PublicKey {
+    return Secp256r1PublicKey(ktCrypto.decodePublicKey(encodedKey.toNSData()).toByteArray())
+}
 
+@OptIn(ExperimentalForeignApi::class, BetaInteropApi::class)
+actual suspend fun Secp256r1PublicKey.encode(): ByteArray {
+    return ktCrypto.encodePublicKey(internalKey.toNSData()).toByteArray()
+}
+
+@OptIn(ExperimentalForeignApi::class, BetaInteropApi::class)
+actual class Secp256r1PrivateKey(val internalKey: ByteArray) : PrivateKey {
+    actual companion object {}
+
+    actual override suspend fun sign(message: ByteArray): ByteArray {
+        return ktCrypto.sign(internalKey.toNSData(), message.toNSData()).toByteArray()
+    }
+}
+
+@OptIn(ExperimentalForeignApi::class, BetaInteropApi::class)
+actual suspend fun Secp256r1PrivateKey.Companion.fromRaw(raw: ByteArray): Secp256r1PrivateKey {
+    return Secp256r1PrivateKey(raw)
+}
+
+@OptIn(ExperimentalForeignApi::class, BetaInteropApi::class)
+actual suspend fun Secp256r1PrivateKey.encode(): ByteArray {
+    return ktCrypto.encodePrivateKey(internalKey.toNSData()).toByteArray()
+}
+
+@OptIn(ExperimentalForeignApi::class, BetaInteropApi::class)
 actual class Secp256r1KeyPair(
     actual override val publicKey: Secp256r1PublicKey,
     actual override val privateKey: Secp256r1PrivateKey
@@ -32,51 +69,48 @@ actual class Secp256r1KeyPair(
     actual companion object
 }
 
-actual suspend fun Secp256r1KeyPair.Companion.generate(): Secp256r1KeyPair =
-    _secp256r1Provider!!.generateKeyPair().let { mergedBytes ->
-        Secp256r1KeyPair(
-            Secp256r1PublicKey(mergedBytes.copyOfRange(32, mergedBytes.size)),
-            Secp256r1PrivateKey(mergedBytes.copyOfRange(0, 32))
-        )
-    }
-
-actual suspend fun Secp256r1KeyPair.Companion.fromPrivateKey(raw: ByteArray): Secp256r1KeyPair? {
-    val mergedBytes = _secp256r1Provider!!.fromPrivateKey(raw)
-    if (mergedBytes.isEmpty()) {
-        return null
-    }
+@OptIn(ExperimentalForeignApi::class, BetaInteropApi::class)
+actual suspend fun Secp256r1KeyPair.Companion.generate(): Secp256r1KeyPair {
+    val nativePair = ktCrypto.generateKeyPair()
 
     return Secp256r1KeyPair(
-        Secp256r1PublicKey(mergedBytes.copyOfRange(32, mergedBytes.size)),
-        Secp256r1PrivateKey(mergedBytes.copyOfRange(0, 32))
+        publicKey = Secp256r1PublicKey((nativePair["publicKey"] as NSData).toByteArray()),
+        privateKey = Secp256r1PrivateKey((nativePair["privateKey"] as NSData).toByteArray())
     )
 }
 
-actual class Secp256r1PublicKey(val internalKey: ByteArray) : PublicKey {
-    actual override suspend fun verify(message: ByteArray, signature: ByteArray): Boolean {
-        return _secp256r1Provider!!.verify(internalKey, message, signature)
+@OptIn(ExperimentalForeignApi::class, BetaInteropApi::class)
+actual suspend fun Secp256r1KeyPair.Companion.fromPrivateKey(raw: ByteArray): Secp256r1KeyPair? {
+    return ktCrypto.fromPrivateKey(raw.toNSData())?.let { nativePair ->
+        Secp256r1KeyPair(
+            publicKey = Secp256r1PublicKey((nativePair["publicKey"] as NSData).toByteArray()),
+            privateKey = Secp256r1PrivateKey((nativePair["privateKey"] as NSData).toByteArray())
+        )
+    }
+}
+
+@OptIn(ExperimentalForeignApi::class, BetaInteropApi::class)
+private fun ByteArray.toNSData(): NSData {
+    return this.usePinned { pinned ->
+        if (this.isEmpty()) {
+            NSData()
+        } else {
+            NSData.create(bytes = pinned.addressOf(0), length = this.size.toULong())
+        }
+    }
+}
+
+@OptIn(ExperimentalForeignApi::class)
+private fun NSData.toByteArray(): ByteArray {
+    if (this.length.toInt() == 0) {
+        return byteArrayOf()
     }
 
-    actual companion object {}
-}
+    val byteArray = ByteArray(this.length.toInt())
+    memScoped {
+        val buffer = byteArray.refTo(0).getPointer(this)
 
-actual suspend fun Secp256r1PublicKey.Companion.decode(encodedKey: ByteArray): Secp256r1PublicKey = Secp256r1PublicKey(
-    _secp256r1Provider!!.fromPublicKey(encodedKey)
-)
-
-actual suspend fun Secp256r1PublicKey.encode(): ByteArray = _secp256r1Provider!!.encodePublic(internalKey)
-
-actual class Secp256r1PrivateKey(val internalKey: ByteArray) : PrivateKey {
-    actual override suspend fun sign(message: ByteArray): ByteArray {
-        return _secp256r1Provider!!.sign(internalKey, message)
+        memcpy(buffer, this@toByteArray.bytes, this@toByteArray.length)
     }
-
-    actual companion object {}
+    return byteArray
 }
-
-actual suspend fun Secp256r1PrivateKey.Companion.fromRaw(raw: ByteArray): Secp256r1PrivateKey {
-    val merged = _secp256r1Provider!!.fromPrivateKey(raw)
-    return Secp256r1PrivateKey(merged.copyOfRange(0, 32))
-}
-
-actual suspend fun Secp256r1PrivateKey.encode(): ByteArray = this.internalKey
