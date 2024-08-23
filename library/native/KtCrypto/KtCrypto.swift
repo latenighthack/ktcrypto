@@ -58,7 +58,7 @@ public class KtCrypto: NSObject {
     }
 
     @objc(decodePublicKey:) public func decodePublicKey(_ encodedKey: NSData) -> NSData {
-        let publicKey = try! P256.Signing.PublicKey(rawRepresentation: encodedKey as Data)
+        let publicKey = try! P256.Signing.PublicKey(compactRepresentation: encodedKey as Data)
         return publicKey.rawRepresentation as NSData
     }
 

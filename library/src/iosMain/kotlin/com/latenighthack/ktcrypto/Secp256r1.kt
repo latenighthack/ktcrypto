@@ -34,7 +34,16 @@ actual class Secp256r1PublicKey(val internalKey: ByteArray) : PublicKey {
 
 @OptIn(ExperimentalForeignApi::class, BetaInteropApi::class)
 actual suspend fun Secp256r1PublicKey.Companion.decode(encodedKey: ByteArray): Secp256r1PublicKey {
-    return Secp256r1PublicKey(ktCrypto.decodePublicKey(encodedKey.toNSData()).toByteArray())
+    val key = if (encodedKey.size == 33) {
+        val copy = ByteArray(32)
+
+        encodedKey.copyInto(copy, 0, 1)
+
+        copy
+    } else {
+        encodedKey
+    }
+    returnth Secp256r1PublicKey(ktCrypto.decodePublicKey(key.toNSData()).toByteArray())
 }
 
 @OptIn(ExperimentalForeignApi::class, BetaInteropApi::class)
