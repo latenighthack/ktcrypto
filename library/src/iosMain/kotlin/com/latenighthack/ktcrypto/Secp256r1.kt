@@ -43,7 +43,7 @@ actual suspend fun Secp256r1PublicKey.Companion.decode(encodedKey: ByteArray): S
     } else {
         encodedKey
     }
-    returnth Secp256r1PublicKey(ktCrypto.decodePublicKey(key.toNSData()).toByteArray())
+    return Secp256r1PublicKey(ktCrypto.decodePublicKey(key.toNSData()).toByteArray())
 }
 
 @OptIn(ExperimentalForeignApi::class, BetaInteropApi::class)

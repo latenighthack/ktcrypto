@@ -12,6 +12,8 @@ kotlin {
     js {
         browser()
     }
+    jvm {
+    }
     androidTarget {
         publishLibraryVariants("release")
         @OptIn(ExperimentalKotlinGradlePluginApi::class)
@@ -38,6 +40,11 @@ kotlin {
         val commonMain by getting {
             dependencies {
                 implementation(libs.kotlinx.coroutines.core)
+            }
+        }
+        val jvmMain by getting {
+            dependencies {
+                implementation(libs.bouncycastle.jvm)
             }
         }
         val androidMain by getting {
