@@ -1,9 +1,6 @@
 import CryptoKit
 import Foundation
 
-import Foundation
-import CryptoKit
-
 @objc(KtCrypto)
 public class KtCrypto: NSObject {
 
