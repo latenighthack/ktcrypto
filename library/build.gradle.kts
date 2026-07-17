@@ -69,7 +69,7 @@ android {
 }
 
 mavenPublishing {
-    coordinates("com.latenighthack.ktcrypto", "ktcrypto-library", "0.0.3")
+    coordinates("com.latenighthack.ktcrypto", "ktcrypto-library", "0.0.5")
 
     pom {
         name.set("ktcrypto")
@@ -102,5 +102,6 @@ swiftklib {
     create("KtCrypto") {
         path = file("native/KtCrypto")
         packageName("com.latenighthack.objclibs.ktcrypto")
+        minIos = 16 // CryptoKit compressedRepresentation (SEC1) requires iOS 16+
     }
 }

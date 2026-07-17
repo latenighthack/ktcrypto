@@ -127,49 +127,9 @@ actual class Secp256r1PrivateKey(val internalKey: java.security.PrivateKey) : Pr
         val ecdsaSign: Signature = Signature.getInstance("SHA256withECDSA", bcProvider)
         ecdsaSign.initSign(internalKey)
         ecdsaSign.update(message)
-
-        if (true) {
-            return ecdsaSign.sign()
-        }
-
-        // There doesn't seem to be a good way to specify what format we wish to export.
-        //
-        // We exploit the fact that the DER file structure will be identical for signature's, and so
-        // we only need to parse what's relevant to us, and not impl a full Der decoder.
-        //
-        // Format: [SEQ|Constructed, RemainingLen][INTEGER_TAG,LEN]<r>[INTEGER_TAG,LEN]<s>
-        //
-        // We use this structure to identify where the R and S integers are stored in the signature.
-        //
-        // Both integers need to be the same length when exported into a raw key so readers can simply
-        // divide the signature in half for the boundaries.
-        //
-        // Both integers are expected to be positive. More robust decoders will assert this when
-        // reading out an EC signature (e.g. ECUtil.java).
-        //
-        // Further Reading:
-        // https://crypto.stackexchange.com/questions/57731/ecdsa-signature-rs-to-asn1-der-encoding-question/57734#57734
-        // https://stackoverflow.com/questions/48530316/what-is-the-output-format-of-the-sha256withecdsa-signature-algorithm
-        // https://letsencrypt.org/docs/a-warm-welcome-to-asn1-and-der/
-        // sun.security.util.ECUtil.java (not avail on android)
-        val derSig = ecdsaSign.sign()
-
-        val r = BigInteger(1,derSig.sliceArray(4 until 4+derSig[3]))
-        val s = BigInteger(1, derSig.sliceArray(4+derSig[3]+2 until derSig.size))
-
-        // todo: generalize the casting to unsigned
-        val rBytes = trimZeros(r.toByteArray())
-        val sBytes = trimZeros(s.toByteArray())
-
-        // r and s should occupy the same amount of space.
-        //
-        // note: BigInt encoding is big endian, so we calculate their dest position from the 'right'
-        val k = rBytes.size.coerceAtLeast(sBytes.size)
-        val result = ByteArray(k shl 1)
-        rBytes.copyInto(result, k - rBytes.size)
-        sBytes.copyInto(result, result.size - sBytes.size)
-
-        return result
+        // BouncyCastle emits a DER-encoded signature; every ktcrypto consumer (and `verify` above)
+        // expects a fixed-width 64-byte raw r‖s — the same form iOS/JS emit natively.
+        return derToRawSignature(ecdsaSign.sign())
     }
 
     actual companion object
@@ -191,10 +151,30 @@ actual suspend fun Secp256r1PrivateKey.encode(): ByteArray {
     return BigIntegers.asUnsignedByteArray(length, (internalKey as ECPrivateKey).d)
 }
 
-private fun trimZeros(b: ByteArray): ByteArray {
-    var i = 0
-    while ((i < b.size - 1) && b[i] == 0.toByte()) {
-        i++
-    }
-    return b.sliceArray(i until b.size)
+/**
+ * Converts a DER-encoded ECDSA signature to the canonical fixed-width 64-byte raw r‖s that
+ * ktcrypto's `verify` (and the iOS/JS platforms) use.
+ */
+private fun derToRawSignature(der: ByteArray): ByteArray {
+    var offset = 0
+    require(der.getOrNull(offset++) == 0x30.toByte()) { "invalid DER signature header" }
+    offset++ // sequence length — always short-form for P-256 signatures
+    require(der[offset++] == 0x02.toByte()) { "invalid DER signature (r)" }
+    val rLen = der[offset++].toInt() and 0xFF
+    val r = der.copyOfRange(offset, offset + rLen)
+    offset += rLen
+    require(der[offset++] == 0x02.toByte()) { "invalid DER signature (s)" }
+    val sLen = der[offset++].toInt() and 0xFF
+    val s = der.copyOfRange(offset, offset + sLen)
+    return leftPad32(r) + leftPad32(s)
+}
+
+private fun leftPad32(value: ByteArray): ByteArray {
+    var start = 0
+    while (start < value.size - 1 && value[start] == 0.toByte()) start++
+    val trimmed = value.copyOfRange(start, value.size)
+    val out = ByteArray(32)
+    val copyLen = minOf(trimmed.size, 32)
+    trimmed.copyInto(out, 32 - copyLen, trimmed.size - copyLen, trimmed.size)
+    return out
 }

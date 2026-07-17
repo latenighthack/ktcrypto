@@ -46,7 +46,8 @@ public class KtCrypto: NSObject {
 
     @objc(encodePublicKey:) public func encodePublicKey(publicKeyRaw: NSData) -> NSData {
         let publicKey = try! P256.Signing.PublicKey(rawRepresentation: publicKeyRaw as Data)
-        return publicKey.compactRepresentation as! NSData
+        // SEC1 compressed (0x02/0x03 ‖ X, 33 bytes) to match the JVM/Android encoding.
+        return publicKey.compressedRepresentation as NSData
     }
 
     @objc(encodePrivateKey:) public func encodePrivateKey(privateKeyRaw: NSData) -> NSData {
@@ -55,7 +56,7 @@ public class KtCrypto: NSObject {
     }
 
     @objc(decodePublicKey:) public func decodePublicKey(_ encodedKey: NSData) -> NSData {
-        let publicKey = try! P256.Signing.PublicKey(compactRepresentation: encodedKey as Data)
+        let publicKey = try! P256.Signing.PublicKey(compressedRepresentation: encodedKey as Data)
         return publicKey.rawRepresentation as NSData
     }
 

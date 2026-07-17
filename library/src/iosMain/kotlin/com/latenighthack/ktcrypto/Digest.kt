@@ -11,7 +11,12 @@ import platform.CoreCrypto.CC_SHA256_DIGEST_LENGTH
 actual suspend fun SHA256.digest(bytes: ByteArray): ByteArray {
     val digest = UByteArray(CC_SHA256_DIGEST_LENGTH)
 
-    bytes.usePinned { inputPinned ->
+    // addressOf(0) is out of bounds for a zero-length array on Kotlin/Native, so for empty input
+    // pin a 1-byte scratch for a valid base pointer and still hash the real (zero) length — this
+    // yields the correct SHA-256 of the empty string rather than crashing.
+    val input = if (bytes.isEmpty()) ByteArray(1) else bytes
+
+    input.usePinned { inputPinned ->
         digest.usePinned { digestPinned ->
             CC_SHA256(inputPinned.addressOf(0), bytes.size.convert(), digestPinned.addressOf(0))
         }
