@@ -69,7 +69,7 @@ android {
 }
 
 mavenPublishing {
-    coordinates("com.latenighthack.ktcrypto", "ktcrypto-library", "0.0.5")
+    coordinates("com.latenighthack.ktcrypto", "ktcrypto-library", version.toString())
 
     pom {
         name.set("ktcrypto")
