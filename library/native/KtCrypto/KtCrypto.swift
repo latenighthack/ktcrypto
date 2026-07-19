@@ -64,4 +64,20 @@ public class KtCrypto: NSObject {
         let privateKey = try! P256.Signing.PrivateKey(rawRepresentation: raw as Data)
         return privateKey.rawRepresentation as NSData
     }
+
+    // combined = nonce(12) ‖ ciphertext ‖ tag(16), matching the JVM/JS wire format
+    @objc(gcmEncrypt:clearText:) public func gcmEncrypt(keyRaw: NSData, clearText: NSData) -> NSData {
+        let key = SymmetricKey(data: keyRaw as Data)
+        let sealedBox = try! AES.GCM.seal(clearText as Data, using: key)
+        return sealedBox.combined! as NSData
+    }
+
+    @objc(gcmDecrypt:cipherText:) public func gcmDecrypt(keyRaw: NSData, cipherText: NSData) -> NSData? {
+        let key = SymmetricKey(data: keyRaw as Data)
+        guard let sealedBox = try? AES.GCM.SealedBox(combined: cipherText as Data),
+              let clearText = try? AES.GCM.open(sealedBox, using: key) else {
+            return nil
+        }
+        return clearText as NSData
+    }
 }
