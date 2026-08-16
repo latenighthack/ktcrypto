@@ -8,6 +8,12 @@ plugins {
     id("io.github.ttypic.swiftklib") version "0.6.3"
 }
 
+// Unique archive base name so the published jvm/js artifacts are `ktcrypto-library-*` rather than the
+// generic `library-*` (the project name). Otherwise two `:library` modules at the same version (e.g.
+// ktcrypto + ktstore both 0.0.8) collide as `library-jvm-<v>.jar` in a consumer's application
+// distribution, which Gradle 9 rejects as a duplicate.
+base { archivesName.set("ktcrypto-library") }
+
 kotlin {
     js {
         browser()
