@@ -14,7 +14,7 @@ plugins {
 
 allprojects {
     group = "com.latenighthack.ktcrypto"
-    version = "0.0.6"
+    version = "0.0.7"
 
     repositories {
         mavenCentral()
@@ -29,7 +29,10 @@ subprojects {
         configure<MavenPublishBaseExtension> {
             configureBasedOnAppliedPlugins(true, true)
             publishToMavenCentral(SonatypeHost.CENTRAL_PORTAL, automaticRelease = true)
-            signAllPublications()
+            // -PskipSigning: local mavenLocal publishes have no signatory configured
+            if (!project.hasProperty("skipSigning")) {
+                signAllPublications()
+            }
             pom {
                 name.set(project.name)
                 description.set("Native wrappers for crypto primitives.")

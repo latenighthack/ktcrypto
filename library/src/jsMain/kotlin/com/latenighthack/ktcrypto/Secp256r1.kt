@@ -117,14 +117,19 @@ actual suspend fun Secp256r1PublicKey.encode(): ByteArray {
 
 actual class Secp256r1PrivateKey(val internalKey: dynamic) : PrivateKey {
     actual override suspend fun sign(message: ByteArray): ByteArray {
+        // locals so the raw js() block can capture them (js() sees Kotlin locals by name only);
+        // internalKey IS the private CryptoKey (see generate()), and the chain must return at
+        // every step or the final sign() sees undefined
+        val internalKey = this.internalKey
+        val message = message
         val arrayByfferData = (js(
             """
-            crypto.subtle.exportKey('pkcs8', internalKey.privateKey)
+            crypto.subtle.exportKey('pkcs8', internalKey)
                 .then(function(privKey) {
-                    crypto.subtle.importKey('pkcs8', privKey, { name: 'ECDSA', namedCurve: 'P-256'}, true, ["sign"])
+                    return crypto.subtle.importKey('pkcs8', privKey, { name: 'ECDSA', namedCurve: 'P-256'}, true, ["sign"]);
                 })
                 .then(function(signKey) {
-                    crypto.subtle.sign({name: "ECDSA", hash: {name: "SHA-256"}}, signKey, message);
+                    return crypto.subtle.sign({name: "ECDSA", hash: {name: "SHA-256"}}, signKey, message);
                 })
             """
         ) as Promise<*>).await() as ArrayBuffer
